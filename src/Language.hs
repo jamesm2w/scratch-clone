@@ -11,11 +11,6 @@ module Language where
 -- | A program consists of a sequence of statements.
 type Program = [Stmt]
 
--- | A memory cell is an integer value or a subroutine program to run
-data MemCell = Val Int | SubProgram Stmt
-    deriving (Eq, Show)
-
-
 -- | A program is a sequence of statements.
 data Stmt
     = AssignStmt {
@@ -32,18 +27,7 @@ data Stmt
         repeatTimesExpr :: Expr,
         repeatBody      :: [Stmt]
     }
-    | DefSubroutine {
-        routineName    :: String,
-        routineProgram :: Program
-    }
-    | CallSubroutine {
-        subName  :: String,
-        subInput :: [(String, Expr)]
-    }
-    | SubroutineReturn {
-        returnValue :: Expr
-    }
-    deriving (Eq, Show)
+    deriving Show
 
 --------------------------------------------------------------------------------
 
@@ -67,7 +51,6 @@ data Expr
     = ValE Int
     | VarE String
     | BinOpE Op Expr Expr
-    | CallFunction String [(String, Expr)]
-    deriving (Eq, Show)
+    deriving Show
 
 --------------------------------------------------------------------------------

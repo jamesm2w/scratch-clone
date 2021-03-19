@@ -21,5 +21,3 @@ cabal.project.local
 
 # benchmark output
 cswk2.html
-
-scratch-clone*.zip

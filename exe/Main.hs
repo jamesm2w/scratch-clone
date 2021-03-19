@@ -8,7 +8,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | This module contains the main entry point to the program and implements
 -- the web server.
@@ -32,8 +31,6 @@ import Servant
 
 import Convert
 import Interpreter
-
-import Language
 
 --------------------------------------------------------------------------------
 
@@ -60,12 +57,6 @@ instance ToJSON RunResponse where
     toJSON (RunSuccess mem) = object ["memory" .= toJSON mem]
     toJSON (RunFailure err) = object ["error"  .= err]
 
--- | Convert Memory Cells of different types into JSON
--- Does warnings about instance orphans -- should I care?
-instance ToJSON MemCell where
-    toJSON (Language.Val i) = toJSON i
-    toJSON Language.SubProgram {} = "Program"
-
 --------------------------------------------------------------------------------
 
 -- | The web application's API as a type.
@@ -85,8 +76,8 @@ webAppSettings = (defaultWebAppSettings ".") {
 
 -- | The request handler for evaluation requests.
 runInterpreter :: Doc -> Handler RunResponse
-runInterpreter (Doc vs stmts subs) =
-    case interpret stmts ([(v, Language.Val 0) | v <- vs] ++ [(name, SubProgram stmt) | (name, stmt) <- subs]) of
+runInterpreter (Doc vs stmts) =
+    case interpret stmts [(v,0) | v <- vs] of
         Left err -> return $ RunFailure (show err)
         Right mem -> return $ RunSuccess mem
 
