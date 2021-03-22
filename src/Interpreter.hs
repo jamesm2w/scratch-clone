@@ -2,6 +2,14 @@
 -- Functional Programming (CS141)                                             --
 -- Coursework 2: Scratch clone                                                --
 --------------------------------------------------------------------------------
+--
+-- Extensions to my Coursework:
+--  This is the "normal" solution.
+--  There is "scratch-clone-cursed" which is a code-golf submission with the
+--       interpreter in 1 line and about 1050 chars.
+--  There is "scratch-clone-ext" which actually implements some useful language 
+--       extensions to the scratch clone
+--------------------------------------------------------------------------------
 
 {-# LANGUAGE RecordWildCards #-}
 
@@ -33,7 +41,10 @@ data Err
 -- If there are no statements left to evaluate it just returns the memory.
 -- Otherwise, it first evaluates the result of the first memory cell, then 
 -- sequentially binds that to a recursive call on the tail of the list of statements.
--- Runs in O(n) time since it linearly recurses through the list of statements
+-- Performance:
+--  Best Case: O(1) - When the program is empty.
+--  Otherwise: O(n^m) - Since it interprets `m` stmts, 
+--      which could be another `n` function applications to evaluate expressions
 interpret :: Program -> Memory -> Either Err Memory
 interpret []     m = Right m
 interpret (p:ps) m = exec p m >>= interpret ps
@@ -43,17 +54,17 @@ interpret (p:ps) m = exec p m >>= interpret ps
 -- computation.
 eval :: Expr -> Memory -> Either Err Int
 
--- ValE is just an explicit value. Runs in O(1) constant time.
+-- ValE is just an explicit value. Performance: O(1) constant time.
 eval (ValE i) _ = Right i
 
--- VarE is a reference to a variable. Runs in O(n) time as it uses 
+-- VarE is a reference to a variable. Performance: O(n) time as it uses 
 -- a linear search to find the value in memory
 eval (VarE x) m = memGet x m
 
 -- BinOpE represents the application of an operator with two arguments.
 -- It first evaluates the left and right arguments and then uses the apply
 -- helper function to calculate the result.
--- Runs in worst case O(l + r) time as both left and right need to be evaluated. 
+-- Performance in worst case O(l + r) time as both left and right need to be evaluated. 
 eval (BinOpE o l r) m = do vl <- eval l m
                            vr <- eval r m
                            apply o vl vr
@@ -63,14 +74,14 @@ eval (BinOpE o l r) m = do vl <- eval l m
 exec :: Stmt -> Memory -> Either Err Memory
 
 -- Assign statement: Assigns a value in memory. This evaluates an expression then sets memory.
--- Runs in O(n) time as it uses a linear search to set memory contents.
+-- Performance: O(n) time as it uses a linear search to set memory contents.
 exec AssignStmt{..} m = do x <- eval assignExpr m
-                           return $ memSet assignVar x m
+                           pure $ memSet assignVar x m
 
 -- If Statement: Evaluates an if condition. If == 0 then interprets the associated body statements.
 -- however, if it's zero it procedes to check the else if conditions, until there are none left
 -- at which point it just interprets the final else list of statements. 
--- Runs in O(n) time as it uses a linear search through case statements.
+-- Performance: O(n) time as it uses a linear search through case statements.
 exec IfStmt{..} m = do 
                         x <- eval ifCond m
                         if x == 0
@@ -82,7 +93,7 @@ exec IfStmt{..} m = do
 -- Repeat Statement: Repeats a list of statement a given (fixed) amount of times.
 -- Unlike a while loop the upper bound on repetitions doesn't change.
 -- However, memory state is passed between iterations. 
--- Runs in O(n) time as it uses a linear fold to repeatedly interpret statement list
+-- Performance: O(n^m) - A loop of `n` elements repeats `m` times.
 exec RepeatStmt{..} m = do i <- eval repeatTimesExpr m 
                            foldM (flip interpret) m (replicate i repeatBody)
 
@@ -94,6 +105,15 @@ exec RepeatStmt{..} m = do i <- eval repeatTimesExpr m
 -- or implementing something myself, but running benchmarks
 -- I found no significant time saving on a custom recursive
 -- function against using `lookup` and `filter`
+--
+-- Benchmarking the memory access it gives: (cswk2.html)
+--   n | t (us)
+-- ----|------
+--  10 |  0.43
+--  50 |  1.70
+-- 100 |  3.39
+-- 500 | 16.2
+-- Which is a very good fit for an O(n) regression (r=0.9999)
 
 -- | A helper function to set a value in memory
 -- Returning the new memory list including (n, v), with the rest
@@ -101,14 +121,14 @@ exec RepeatStmt{..} m = do i <- eval repeatTimesExpr m
 -- Uses filter to remove all elements which have the same first element.
 -- meaning only one instance of the variable key will be in the memory list
 -- at one time.
--- Runs in O(n) since it uses filter, which is a linear search through
+-- Performance: O(n) time since it uses filter, which is a linear search through
 -- the list.
 memSet :: String -> Int -> Memory -> Memory
 memSet n v m = (n, v) : filter ((n /=) . fst) m
 
 -- | A helper function to lookup a value from memory, wrapped like this
 -- to make sure if it's not in memory an UninitialisedMemory error is returned.
--- Works in O(n) time by a linear search through the memory list
+-- Performance: O(n) time by a linear search through the memory list
 memGet :: String -> Memory -> Either Err Int
 memGet n m = case lookup n m of
                 Nothing -> Left $ UninitialisedMemory n
@@ -126,6 +146,7 @@ pureEnum = pure . fromEnum
 --
 -- For the boolean operators (==, /=, <, >, <=, >=) I used `fromEnum` which returns 0 when false 
 -- and 1 for true.
+-- Performance: O(1) time - only one function application for a combination of operator, x and y.
 apply :: Op -> Int -> Int -> Either Err Int
 apply Add x y = pure $ x + y
 apply Sub x y = pure $ x - y
